@@ -37,7 +37,7 @@ input[type=range]{width:100%;cursor:pointer;box-sizing:border-box;accent-color:#
 </div>
 <div id="coords-readout"><span class="coord-label">PROGRESS</span><span id="live-percent">0.0</span>%</div>
 <script>
-const START_TIME_B64 = "MTc3Mjg5NjI0OQ==";
+const START_TIME_B64 = "MTc3Mjg5NjgwMg==";
 const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,0.1,1000)
 camera.position.z=15;const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true})
 renderer.setClearColor(0x020202,1);renderer.setSize(window.innerWidth,window.innerHeight);document.body.appendChild(renderer.domElement)
@@ -46,8 +46,7 @@ const R=5;const globeMat=new THREE.MeshPhongMaterial({color:0x222222,shininess:5
 const globeMesh=new THREE.Mesh(new THREE.SphereGeometry(R,64,64),globeMat);globeMesh.rotation.y=-Math.PI/2
 scene.add(globeMesh);scene.add(new THREE.AmbientLight(0xffffff,0.6));const dirLight=new THREE.DirectionalLight(0xffffff,0.8)
 dirLight.position.set(10,10,10);scene.add(dirLight)
-let waypointsData=[];let fullPathPoints=[];let pathLine=null;let pathCurve=null;let arrow=null;let waypointMeshes=[]
-const colors={unknown:0xff3333,continent:0x2ecc71,lake:0x00d2d3,ocean:0x0984e3}
+let waypointsData=[];let fullPathPoints=[];let pathLine=null;let pathCurve=null;let arrow=null;
 let isAnimating=false;let currentPlaybackTime=0
 let _st=parseInt(atob(START_TIME_B64)),_rt=0;
 window.onload=function(){
@@ -56,15 +55,13 @@ Promise.all([fetch(window.location.href,{cache:"no-store",method:"HEAD"}).then(r
 let nx=d[0];if(nx-_st>2592000||nx<_st)throw 1;
 _rt=nx-(performance.now()/1000);let c=d[1]
 if(!c.trim().startsWith("[")){try{c=decodeURIComponent(escape(atob(c.trim())))}catch(e){}}
-JSON.parse(c).forEach(p=>{if(p.lat!==undefined)addWaypoint(p.lat,p.lon,p.time,p.terrain||"unknown")})
+JSON.parse(c).forEach(p=>{if(p.lat!==undefined)addWaypoint(p.lat,p.lon,p.time)})
 rebuildPath();const ls=document.getElementById("loading-screen");ls.style.opacity="0";setTimeout(()=>{ls.style.display="none";if(waypointsData.length>=2){isAnimating=true;}},800)
 }).catch(e=>{document.getElementById("loading-screen").innerText="UPLINK FAILED / OFFLINE"})};
-function addWaypoint(lat,lon,t,type){
+function addWaypoint(lat,lon,t){
 const phi=lat*(Math.PI/180);const theta=lon*(Math.PI/180);const y=R*Math.sin(phi);const xr=R*Math.cos(phi)
 const cp=new THREE.Vector3(xr*Math.sin(theta),y,xr*Math.cos(theta))
-const m=new THREE.Mesh(new THREE.SphereGeometry(0.12,16,16),new THREE.MeshBasicMaterial({color:colors[type]}))
-m.position.copy(cp);m.visible=false;scene.add(m);waypointMeshes.push(m)
-waypointsData.push({lat:lat,lon:lon,pos:cp,time:t,mesh:m});waypointsData.sort((a,b)=>a.time-b.time)}
+waypointsData.push({lat:lat,lon:lon,pos:cp,time:t});waypointsData.sort((a,b)=>a.time-b.time)}
 function rebuildPath(){
 if(pathLine){scene.remove(pathLine);pathLine.geometry.dispose();pathLine.material.dispose()}
 if(waypointsData.length<2)return;const v=waypointsData.map(w=>w.pos);pathCurve=new THREE.CatmullRomCurve3(v)
@@ -74,10 +71,10 @@ pathLine=new THREE.Line(lg,new THREE.LineBasicMaterial({color:0xffcc00,linewidth
 if(!arrow){const ag=new THREE.ConeGeometry(0.15,0.4,16);ag.rotateX(Math.PI/2);arrow=new THREE.Mesh(ag,new THREE.MeshBasicMaterial({color:0x00ffcc}));scene.add(arrow)}}
 function updateSceneObjects(){
 if(waypointsData.length<2||!pathCurve||!arrow)return;const mt=waypointsData[waypointsData.length-1].time;let pr=0
-if(currentPlaybackTime>=mt){pr=1;isAnimating=false;waypointMeshes.forEach(m=>m.visible=true)}else{
-for(let i=0;i<waypointsData.length-1;i++){const t1=waypointsData[i].time;const t2=waypointsData[i+1].time;waypointsData[i].mesh.visible=currentPlaybackTime>=t1
+if(currentPlaybackTime>=mt){pr=1;isAnimating=false;}else{
+for(let i=0;i<waypointsData.length-1;i++){const t1=waypointsData[i].time;const t2=waypointsData[i+1].time;
 if(currentPlaybackTime>=t1&&currentPlaybackTime<=t2){let lp=0;if(t2-t1>0)lp=(currentPlaybackTime-t1)/(t2-t1);pr=(i+lp)/(waypointsData.length-1);break}}
-waypointsData[waypointsData.length-1].mesh.visible=false}
+}
 document.getElementById('live-percent').innerText=((currentPlaybackTime/mt)*100).toFixed(1)
 const cp=pathCurve.getPoint(pr).normalize().multiplyScalar(R+0.05);let fd=new THREE.Vector3(0,0,0)
 if(pr<0.999){const np=pathCurve.getPoint(pr+0.001).normalize().multiplyScalar(R+0.05);fd.subVectors(np,cp).normalize();arrow.position.copy(cp);arrow.lookAt(np)}else{arrow.visible=false}
